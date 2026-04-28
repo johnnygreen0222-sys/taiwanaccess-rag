@@ -4,7 +4,7 @@ RAG 查詢核心
 embedding backend: Ollama (local) 或 HuggingFace API (cloud)
 generation backend: Ollama (local) 或 Gemini API (cloud)
 """
-import os, json, urllib.request, urllib.error
+import os, json, time, urllib.request, urllib.error
 
 # ── Config ──────────────────────────────────────────────────────
 GEMINI_KEY    = os.environ.get('GEMINI_API_KEY', '')
