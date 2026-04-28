@@ -5,32 +5,29 @@ blog  → 語義分塊（600 tokens, 80 overlap）
 product → 整頁作為一個 unit（model+specs）
 """
 import os, json, re, time, urllib.request
-import tiktoken
 
 GEMINI_KEY   = os.environ.get('GEMINI_API_KEY', '')
 EMBED_MODEL  = 'gemini-embedding-001'   # 3072 dims, free
-CHUNK_SIZE   = 600
-CHUNK_OVERLAP = 80
-
-enc = tiktoken.get_encoding('cl100k_base')
+CHUNK_SIZE   = 2400   # chars（約 600 tokens）
+CHUNK_OVERLAP = 320   # chars
 
 # ── Chunking ────────────────────────────────────────────────────
 
-def _token_len(text):
-    return len(enc.encode(text))
+def _char_len(text):
+    return len(text)
 
 def chunk_blog(text: str, chunk_size=CHUNK_SIZE, overlap=CHUNK_OVERLAP) -> list[str]:
     """語義分塊：優先在段落邊界切分，不強行截斷物理原理段落"""
     paragraphs = [p.strip() for p in re.split(r'\n{2,}', text) if len(p.strip()) > 20]
     chunks, current, current_len = [], [], 0
     for para in paragraphs:
-        p_len = _token_len(para)
+        p_len = _char_len(para)
         if current_len + p_len > chunk_size and current:
             chunks.append('\n\n'.join(current))
             # overlap：保留最後一段
-            if _token_len(current[-1]) < overlap:
+            if _char_len(current[-1]) < overlap:
                 current = [current[-1]]
-                current_len = _token_len(current[-1])
+                current_len = _char_len(current[-1])
             else:
                 current, current_len = [], 0
         current.append(para)
@@ -42,7 +39,7 @@ def chunk_blog(text: str, chunk_size=CHUNK_SIZE, overlap=CHUNK_OVERLAP) -> list[
 def chunk_product(title: str, content: str) -> list[str]:
     """產品頁：title + 規格作為一個 unit；若過長再細切"""
     full = f'產品：{title}\n\n{content}'
-    if _token_len(full) <= CHUNK_SIZE * 2:
+    if _char_len(full) <= CHUNK_SIZE * 2:
         return [full]
     # 過長則切成 2 段
     return chunk_blog(full, chunk_size=CHUNK_SIZE * 2, overlap=100)
@@ -53,9 +50,8 @@ def embed_texts(texts: list[str], batch=1) -> list[list[float]]:
     """用 Gemini embedding-001（免費，3072 dims），逐筆送，rate limit 保護"""
     all_vecs = []
     for i, text in enumerate(texts):
-        tokens = enc.encode(text)
-        if len(tokens) > 2000:
-            text = enc.decode(tokens[:2000])
+        if len(text) > 8000:
+            text = text[:8000]
         body = json.dumps({'content': {'parts': [{'text': text}]}}, ensure_ascii=False).encode('utf-8')
         req  = urllib.request.Request(
             f'https://generativelanguage.googleapis.com/v1beta/models/{EMBED_MODEL}:embedContent?key={GEMINI_KEY}',

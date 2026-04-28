@@ -15,6 +15,8 @@ OLLAMA_LLM    = os.environ.get('OLLAMA_LLM', 'qwen3:14b')
 LLM_BACKEND   = os.environ.get('LLM_BACKEND', 'gemini')  # 'gemini' | 'ollama'
 
 def embed_query(text: str) -> list[float]:
+    if len(text) > 8000:
+        text = text[:8000]
     body = json.dumps({'content': {'parts': [{'text': text}]}}, ensure_ascii=False).encode('utf-8')
     req  = urllib.request.Request(
         f'https://generativelanguage.googleapis.com/v1beta/models/{EMBED_MODEL}:embedContent?key={GEMINI_KEY}',
