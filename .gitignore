@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+*.pyo
+rag_raw.json
+rag_chunks.json
+.env
+.DS_Store
