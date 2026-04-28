@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: taiwanaccess-rag
+    env: python
+    pythonVersion: "3.11.0"
+    rootDir: rag
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app --bind 0.0.0.0:$PORT --workers 1 --timeout 120
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.11.0"
+      - key: EMBED_BACKEND
+        value: huggingface
+      - key: LLM_BACKEND
+        value: gemini
+      - key: HF_TOKEN
+        sync: false          # 在 Render Dashboard 手動填
+      - key: GEMINI_API_KEY
+        sync: false          # 在 Render Dashboard 手動填
+      - key: RAG_DATABASE_URL
+        sync: false          # 在 Render Dashboard 手動填
