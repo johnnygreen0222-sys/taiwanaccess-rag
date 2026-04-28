@@ -18,12 +18,17 @@ def embed_query(text: str) -> list[float]:
     if len(text) > 8000:
         text = text[:8000]
     body = json.dumps({'content': {'parts': [{'text': text}]}}, ensure_ascii=False).encode('utf-8')
-    req  = urllib.request.Request(
-        f'https://generativelanguage.googleapis.com/v1beta/models/{EMBED_MODEL}:embedContent?key={GEMINI_KEY}',
-        data=body, headers={'Content-Type': 'application/json'}
-    )
-    with urllib.request.urlopen(req, timeout=30) as r:
-        return json.loads(r.read())['embedding']['values']
+    url  = f'https://generativelanguage.googleapis.com/v1beta/models/{EMBED_MODEL}:embedContent?key={GEMINI_KEY}'
+    for attempt in range(3):
+        try:
+            req = urllib.request.Request(url, data=body, headers={'Content-Type': 'application/json'})
+            with urllib.request.urlopen(req, timeout=30) as r:
+                return json.loads(r.read())['embedding']['values']
+        except urllib.error.HTTPError as e:
+            if e.code == 429 and attempt < 2:
+                time.sleep(8 * (attempt + 1))
+                continue
+            raise
 
 def retrieve(question: str, top_k=5, doc_type=None, brand=None) -> list[dict]:
     """向量搜尋，回傳最相關的 chunks"""
@@ -54,10 +59,18 @@ def _generate_gemini(prompt: str) -> str:
         'generationConfig': {'temperature': 0.3, 'maxOutputTokens': 1024}
     }).encode()
     url = f'https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_GEN}:generateContent?key={GEMINI_KEY}'
-    req = urllib.request.Request(url, data=body, headers={'Content-Type': 'application/json'})
-    with urllib.request.urlopen(req, timeout=30) as r:
-        data = json.loads(r.read())
-    return data['candidates'][0]['content']['parts'][0]['text']
+    for attempt in range(3):
+        try:
+            req = urllib.request.Request(url, data=body, headers={'Content-Type': 'application/json'})
+            with urllib.request.urlopen(req, timeout=30) as r:
+                data = json.loads(r.read())
+            return data['candidates'][0]['content']['parts'][0]['text']
+        except urllib.error.HTTPError as e:
+            if e.code == 429 and attempt < 2:
+                time.sleep(8 * (attempt + 1))
+                continue
+            raise
+    raise Exception('Gemini rate limit')
 
 def _generate_ollama(prompt: str) -> str:
     body = json.dumps({'model': OLLAMA_LLM, 'prompt': prompt, 'stream': False}).encode()

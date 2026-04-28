@@ -107,7 +107,10 @@ def api_ask():
         result = ask(question, top_k=5, doc_type=doc_type, brand=brand)
         return jsonify(result)
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        msg = str(e)
+        if '429' in msg or 'rate limit' in msg.lower():
+            return jsonify({'error': '系統暫時繁忙，請稍後 10 秒再試 🙏'}), 429
+        return jsonify({'error': f'查詢失敗：{msg}'}), 500
 
 @app.route('/api/health')
 def health():
